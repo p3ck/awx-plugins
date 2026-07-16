@@ -37,8 +37,12 @@ from .plugin import CredentialPlugin
 
 
 # https://github.com/Azure/msrestazure-for-python/blob/master/msrestazure/azure_cloud.py
-clouds = [x[1] for x in inspect.getmembers(azure_cloud) if isinstance(x[1], azure_cloud.Cloud)]
-default_cloud = azure_cloud.AZURE_PUBLIC_CLOUD.name
+clouds = [
+    x[1]
+    for x in inspect.getmembers(azure_cloud)
+    if isinstance(x[1], azure_cloud.Cloud)
+]
+default_cloud = azure_cloud.AZURE_PUBLIC_CLOUD
 
 
 azure_oidc_inputs: _types.PluginInputs = {
@@ -49,7 +53,9 @@ azure_oidc_inputs: _types.PluginInputs = {
             'type': 'string',
             'format': 'url',
             'default': 'https://ossrdbms-aad.database.windows.net/.default',
-            'help_text': _('The requested scope parameter in the call to get_token.'),
+            'help_text': _(
+                'The requested scope parameter in the call to get_token.',
+            ),
         },
         {
             'id': 'client',
@@ -81,7 +87,9 @@ azure_oidc_inputs: _types.PluginInputs = {
             'label': _('Scope Parameter (DNS Name)'),
             'type': 'string',
             'format': 'url',
-            'help_text': _('The requested scope parameter in the call to get_token.'),
+            'help_text': _(
+                'The requested scope parameter in the call to get_token.',
+            ),
         },
     ],
     'required': [
@@ -99,6 +107,12 @@ def _initialize_credential(
 ) -> TokenCredential:
     explicit_credentials_provided = all((tenant, client, secret))
 
+    if not explicit_credentials_provided and (tenant or secret):
+        raise RuntimeError(
+            'Client ID, Client Secret, and Tenant ID must be provided '
+            'together for Service Principal authentication, '
+            'or leave Tenant and Secret empty to use Managed Identity.'
+        )
     if explicit_credentials_provided:
         adfs_authority_url = cloud_environment.endpoints.active_directory
         return ClientSecretCredential(
@@ -109,8 +123,7 @@ def _initialize_credential(
         )
 
     return ManagedIdentityCredential(
-            client_id=client,
-            cloud_environment=cloud_environment,
+        client_id=client or None,
     )
 
 
@@ -147,10 +160,12 @@ def azure_oidc_backend(  # noqa: WPS211
     else:
         message = f"cloud_environment '{cloud_name}' could not be resolved."
         raise RuntimeError(message)
-    chosen_credential = _initialize_credential(cloud_environment,
-                                               tenant,
-                                               client,
-                                               secret)
+    chosen_credential = _initialize_credential(
+        cloud_environment,
+        tenant,
+        client,
+        secret,
+    )
     try:
         token = chosen_credential.get_token(url).token
     except CredentialUnavailableError as oidc_lookup_err:
@@ -165,8 +180,7 @@ def azure_oidc_backend(  # noqa: WPS211
         ) from request_err
     except _az_exc.AzureError as catchall_azure_error:
         raise RuntimeError(
-            'Error retrieving token from Azure: '
-            f'{catchall_azure_error}',
+            f'Error retrieving token from Azure: {catchall_azure_error}',
         ) from catchall_azure_error
     return token
 

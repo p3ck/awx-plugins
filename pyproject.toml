@@ -166,6 +166,12 @@ credentials-azure-kv = [
   "azure-keyvault",
   "msrestazure",
 ]
+credentials-azure-token = [
+  "awx_plugin.interfaces",
+  "azure-identity",
+  "msrestazure",
+]
+
 credentials-github-app = [
   "awx_plugins.interfaces",
   "PyGithub",
