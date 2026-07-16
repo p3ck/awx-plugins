@@ -13,6 +13,8 @@ Functions:
 - ``azure_oidc_plugin``: Defines the credential plugin interface.
 """
 
+import inspect
+
 from awx_plugins.interfaces._temporary_private_django_api import (  # noqa: WPS436
     gettext_noop as _,
 )
@@ -35,12 +37,8 @@ from .plugin import CredentialPlugin
 
 
 # https://github.com/Azure/msrestazure-for-python/blob/master/msrestazure/azure_cloud.py
-clouds = [
-    vars(azure_cloud)[n]
-    for n in dir(azure_cloud)
-    if n.startswith('AZURE_') and n.endswith('_CLOUD')
-]
-default_cloud = vars(azure_cloud)['AZURE_PUBLIC_CLOUD']
+clouds = [x[1] for x in inspect.getmembers(azure_cloud) if isinstance(x[1], azure_cloud.Cloud)]
+default_cloud = azure_cloud.AZURE_PUBLIC_CLOUD.name
 
 
 azure_oidc_inputs: _types.PluginInputs = {
@@ -88,11 +86,13 @@ azure_oidc_inputs: _types.PluginInputs = {
     ],
     'required': [
         'url',
+        'cloud_name',
     ],
 }
 
 
 def _initialize_credential(
+    cloud_environment: azure_cloud.Cloud,
     tenant: str = '',
     client: str = '',
     secret: str = '',
@@ -100,13 +100,18 @@ def _initialize_credential(
     explicit_credentials_provided = all((tenant, client, secret))
 
     if explicit_credentials_provided:
+        adfs_authority_url = cloud_environment.endpoints.active_directory
         return ClientSecretCredential(
             tenant_id=tenant,
             client_id=client,
             client_secret=secret,
+            authority=adfs_authority_url,
         )
 
-    return ManagedIdentityCredential()
+    return ManagedIdentityCredential(
+            client_id=client,
+            cloud_environment=cloud_environment,
+    )
 
 
 # WPS211 "too many args" is controlled externally
@@ -114,6 +119,7 @@ def _initialize_credential(
 def azure_oidc_backend(  # noqa: WPS211
     *,
     url: str,
+    cloud_name: str,
     client: str = '',
     secret: str = '',
     tenant: str = '',
@@ -124,6 +130,7 @@ def azure_oidc_backend(  # noqa: WPS211
     An empty string for an optional parameter counts as not provided.
 
     :param url: Scope Parameter for OIDC token.
+    :param cloud_name: The Name of the Azure Cloud to target.
     :param client: The Client ID  (optional).
     :param secret: The Client Secret  (optional).
     :param tenant: The Tenant ID  (optional).
@@ -131,7 +138,19 @@ def azure_oidc_backend(  # noqa: WPS211
     :raises RuntimeError: If the software is not being run on an Azure
         VM.
     """
-    chosen_credential = _initialize_credential(tenant, client, secret)
+    matched_clouds = [x for x in clouds if x.name == cloud_name]
+    if len(matched_clouds) == 1:
+        cloud_environment = matched_clouds[0]
+    elif len(matched_clouds) > 1:
+        message = f"Azure SDK failure: more than one cloud matched for cloud_environment name '{cloud_name}'"
+        raise RuntimeError(message)
+    else:
+        message = f"cloud_environment '{cloud_name}' could not be resolved."
+        raise RuntimeError(message)
+    chosen_credential = _initialize_credential(cloud_environment,
+                                               tenant,
+                                               client,
+                                               secret)
     try:
         token = chosen_credential.get_token(url).token
     except CredentialUnavailableError as oidc_lookup_err:
