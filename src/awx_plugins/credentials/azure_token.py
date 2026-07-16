@@ -111,7 +111,7 @@ def _initialize_credential(
         raise RuntimeError(
             'Client ID, Client Secret, and Tenant ID must be provided '
             'together for Service Principal authentication, '
-            'or leave Tenant and Secret empty to use Managed Identity.'
+            'or leave Tenant and Secret empty to use Managed Identity.',
         )
     if explicit_credentials_provided:
         adfs_authority_url = cloud_environment.endpoints.active_directory
