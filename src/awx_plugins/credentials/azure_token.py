@@ -90,6 +90,7 @@ azure_oidc_inputs: _types.PluginInputs = {
             'help_text': _(
                 'The requested scope parameter in the call to get_token.',
             ),
+            'default': 'https://ossrdbms-aad.database.windows.net/.default',
         },
     ],
     'required': [
