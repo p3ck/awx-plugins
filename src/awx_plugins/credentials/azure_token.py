@@ -93,7 +93,6 @@ azure_oidc_inputs: _types.PluginInputs = {
         },
     ],
     'required': [
-        'url',
         'cloud_name',
     ],
 }
