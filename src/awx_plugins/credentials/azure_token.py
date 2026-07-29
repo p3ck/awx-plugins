@@ -48,16 +48,6 @@ default_cloud = azure_cloud.AZURE_PUBLIC_CLOUD
 azure_oidc_inputs: _types.PluginInputs = {
     'fields': [
         {
-            'id': 'url',
-            'label': _('Scope Parameter (DNS Name)'),
-            'type': 'string',
-            'format': 'url',
-            'default': 'https://ossrdbms-aad.database.windows.net/.default',
-            'help_text': _(
-                'The requested scope parameter in the call to get_token.',
-            ),
-        },
-        {
             'id': 'client',
             'label': _('Client ID'),
             'type': 'string',
@@ -87,13 +77,14 @@ azure_oidc_inputs: _types.PluginInputs = {
             'label': _('Scope Parameter (DNS Name)'),
             'type': 'string',
             'format': 'url',
+            'default': 'https://ossrdbms-aad.database.windows.net/.default',
             'help_text': _(
                 'The requested scope parameter in the call to get_token.',
             ),
-            'default': 'https://ossrdbms-aad.database.windows.net/.default',
         },
     ],
     'required': [
+        'url',
         'cloud_name',
     ],
 }
